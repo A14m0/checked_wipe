@@ -19,7 +19,7 @@ use nix::unistd::Uid;
 
 
 /// define the default number of passes you want to go over the drive with
-static default_pass_num: u32 = 5;
+static DEFAULT_PASS_NUM: u32 = 5;
 
 
 
@@ -151,7 +151,17 @@ fn print_top_levels(disk: &DiskData) -> Result<(), String>{
 
 /// zeros the drive referred to by `disk
 fn zero_drive(disk: &DiskData) -> Result<(), String> {
-    let drive_handle = std::fs::File::
+    let mut drive_handle = std::fs::File::create(disk.path.clone()).expect("Failed to open disk for writing");
+    let write_buf: [u8; 1024*1024] = [0;1024*1024];
+    for _idx in 0..disk.size as u64 {
+        // for each gigabyte...
+        for _idx2 in 0..1024{
+            match drive_handle.write_all(&write_buf){
+                Ok(_) => (),
+                Err(e) => println!("[-] Hit write error: {}", e)
+            };
+        }
+    }
     
     Ok(())
 }
@@ -160,7 +170,7 @@ fn zero_drive(disk: &DiskData) -> Result<(), String> {
 /// define functions for our structures
 impl PartitionData {
     fn new(part_line: String) -> Self {
-        let (id, start, end, sectors, size, fstype) = scan_fmt!(&part_line[..], 
+        let (id, start, end, _sectors, size, fstype) = scan_fmt!(&part_line[..], 
                                                         "{}\t{}\t{}\t{}\t{}\t{}", 
                                                         String, u64, u64, u64, 
                                                         String, String).unwrap();
@@ -369,9 +379,12 @@ fn main() {
     }
 
     println!("______________________________________________________________");
-    println!("Securing formatting drive ({} passes of zeros)...", default_pass_num);
-    for _ in 0..default_pass_num {
-        zero_drive(drives_vec[umount_idx_vec[user_selection as usize-1]]);
+    println!("Securing formatting drive ({} passes of zeros)...", DEFAULT_PASS_NUM);
+    for _ in 0..DEFAULT_PASS_NUM {
+        match zero_drive(&drives_vec[umount_idx_vec[user_selection as usize-1]]){
+            Ok(_) => (),
+            Err(e) => println!("Zero drive issue hit: {}", e)
+        }
     }
     
 }
