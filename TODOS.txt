@@ -1,3 +1,4 @@
 1. Update partition reading such that it parses info from BLKID for partition fs type
 2. Update to include drive name in DiskData structure
 3. Update to include CLI options to help skip the whole parsing part
+4. Use sectors and sector size information to allow for more accurate and full writing to disk
