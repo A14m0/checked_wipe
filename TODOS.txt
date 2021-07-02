@@ -1,0 +1,1 @@
+1. Update partition reading such that it parses info from BLKID for partition fs type
