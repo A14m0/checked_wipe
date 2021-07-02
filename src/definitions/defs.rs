@@ -198,6 +198,12 @@ impl PartitionData {
         PartitionData {id,start,end,size,fstype, is_mounted}
     }
 
+    pub fn to_string(&self) -> String{
+        format!("{}, Start: {}, End: {}, Size: {}, File system: {}, Mount state: {}",
+            self.id, self.start, self.end, self.size, self.fstype, self.is_mounted
+        )
+    }
+
 }
 
 impl Display for PartitionData {
@@ -229,6 +235,12 @@ impl DiskData {
     fn add_partition(&mut self, part: PartitionData ) -> Result<u32,u32> {
         self.partitions.push(part);
         Ok(0)
+    }
+
+    pub fn to_string(&self) -> String {
+        format!("Path: {}, Size: {} {}, # Partitions: {}",
+            self.path, self.size, self.size_unit, self.partitions.len()
+        )
     }
 }
 

@@ -8,6 +8,7 @@ use std::{
     
 };
 use chrono;
+use colored::Colorize;
 use nix::unistd::Uid;
 #[macro_use] extern crate scan_fmt;
 
@@ -49,15 +50,15 @@ fn main() {
     let mut drives_vec: Vec<DiskData> = Vec::new();
     parse_partitions(&mut drives_vec).expect("Failed to read drives");
 
-    println!("All Drives ___________________________________________________");
+    println!("{}", "All Drives ___________________________________________________".green());
     for drive in drives_vec.iter(){
-        println!("\t{}", drive);
+        println!("\t{}", drive.to_string().red());
         for partition in drive.partitions.iter(){
-            println!("\t\t{}", partition);
+            println!("\t\t{}", partition.to_string().italic().yellow());
         }
     }
 
-    println!("\nAll Drives Currently Unmounted _______________________________");
+    println!("\n{}", "All Drives Currently Unmounted _______________________________".green());
     let mut umount_idx_vec: Vec<usize> = Vec::new();
     let mut ctr = 0;
     let mut idx = 0;
@@ -71,7 +72,7 @@ fn main() {
 
         // if the drive is not mounted, print it and save the index
         if !is_drive_mounted {
-            println!("{}\t{}", ctr+1, drive);
+            println!("{}\t{}", ctr+1, drive.to_string().red());
             umount_idx_vec.push(idx);
 
             ctr += 1;
@@ -79,8 +80,8 @@ fn main() {
         idx += 1;
     }
 
-    println!("______________________________________________________________");
-    println!("Select the drive you would like to format (`q` to quit)");
+    println!("{}", "______________________________________________________________".green());
+    println!("{}", "Select the drive you would like to format (`q` to quit)".yellow().clear());
     let mut user_selection = -1;
     let mut is_done = false;
 
@@ -97,7 +98,7 @@ fn main() {
             Ok(i) => {
                 // make sure the user isnt being an idiot
                 if i < 1 || i > umount_idx_vec.len() as i32 {
-                    println!("[-] Not a valid drive index. Please try again");
+                    println!("{}", "[-] Not a valid drive index. Please try again".red().clear());
                 } else {
                     user_selection = i;
                     is_done = true
@@ -109,7 +110,7 @@ fn main() {
                     println!("[ ] Caught quitting input. Doing so...");
                     std::process::exit(0);
                 } else {
-                    println!("[-] Not a valid drive index. Please try again");
+                    println!("{}", "[-] Not a valid drive index. Please try again".red().clear());
                 }
             },
         };
@@ -117,16 +118,16 @@ fn main() {
 
     
     // print drive partition information
-    println!("______________________________________________________________");
+    println!("{}", "______________________________________________________________".green());
     println!("You have selected disk # {}", user_selection);
-    println!("{}", drives_vec[umount_idx_vec[user_selection as usize-1]]);
+    println!("{}", drives_vec[umount_idx_vec[user_selection as usize-1]].to_string().red());
     match print_top_levels(&drives_vec[umount_idx_vec[user_selection as usize-1]]){
         Ok(_) => (),
-        Err(e) => println!("Failed to print all the things: {}", e)
+        Err(e) => println!("{}: {}", "[-] Failed to print all the things".red(), e)
     };
 
     // make sure the user wants to continue
-    println!("Does this information look correct? (y/N)");
+    println!("{}", "Does this information look correct? (y/N)".yellow().clear());
     let mut input_text = String::new();
     print!(" > ");
     io::stdout().flush().unwrap();
@@ -134,18 +135,18 @@ fn main() {
     
     let trimmed = input_text.trim();
     if trimmed.to_lowercase() != "y" {
-        println!("[-] Caught non-affirmative. Quitting...");
+        println!("{}", "[-] Caught non-affirmative. Quitting...".red().clear());
         std::process::exit(0);
     }
 
     // final safety check. is the user really sure they want to format everything???
-    println!("______________________________________________________________");
-    println!("WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING");
-    println!("______________________________________________________________");
+    println!("{}", "______________________________________________________________".red().bold());
+    println!("{}", "WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING".red().bold());
+    println!("{}", "______________________________________________________________".red().bold());
     println!("");
-    println!("YOU ARE ABOUT TO PERMANENTLY DELETE ALL INFORMATION FROM THIS DISK.");
-    println!("ARE YOU SURE YOU WISH TO CONTINUE? THERE IS NO GOING BACK AFTER THIS");
-    println!("y/N");
+    println!("{}", "YOU ARE ABOUT TO PERMANENTLY DELETE ALL INFORMATION FROM THIS DISK.".red().bold());
+    println!("{}", "ARE YOU SURE YOU WISH TO CONTINUE? THERE IS NO GOING BACK AFTER THIS".red().bold());
+    println!("{}", "y/N".yellow().clear());
 
     let mut input_text = String::new();
     print!(" > ");
@@ -158,7 +159,7 @@ fn main() {
         std::process::exit(0);
     }
 
-    println!("______________________________________________________________");
+    println!("{}", "______________________________________________________________".green());
     println!("Securing formatting drive ({} passes of zeros). This will take a while...", DEFAULT_PASS_NUM);
     println!("Started at {:?}", chrono::offset::Local::now());
     for i in 0..DEFAULT_PASS_NUM {
@@ -170,7 +171,7 @@ fn main() {
         }
     }
 
-    println!("______________________________________________________________");
-    println!("[+] Wipe complete!");
+    println!("{}", "______________________________________________________________".green());
+    println!("{}", "[+] Wipe complete!".green());
     
 }
