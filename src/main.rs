@@ -17,6 +17,12 @@ use std::{
 use nix::unistd::Uid;
 #[macro_use] extern crate scan_fmt;
 
+
+/// define the default number of passes you want to go over the drive with
+static default_pass_num: u32 = 5;
+
+
+
 /// define our structure for partition data
 #[derive (Clone)]
 struct PartitionData{
@@ -143,6 +149,12 @@ fn print_top_levels(disk: &DiskData) -> Result<(), String>{
     Ok(())
 }
 
+/// zeros the drive referred to by `disk
+fn zero_drive(disk: &DiskData) -> Result<(), String> {
+    let drive_handle = std::fs::File::
+    
+    Ok(())
+}
 
 
 /// define functions for our structures
@@ -314,7 +326,7 @@ fn main() {
     }
 
     
-
+    // print drive partition information
     println!("______________________________________________________________");
     println!("You have selected disk # {}", user_selection);
     println!("{}", drives_vec[umount_idx_vec[user_selection as usize-1]]);
@@ -322,5 +334,44 @@ fn main() {
         Ok(_) => (),
         Err(e) => println!("Failed to print all the things: {}", e)
     };
+
+    // make sure the user wants to continue
     println!("Does this information look correct? (y/N)");
+    let mut input_text = String::new();
+    print!(" > ");
+    io::stdout().flush().unwrap();
+    io::stdin().read_line(&mut input_text).expect("failed to read from stdin");
+    
+    let trimmed = input_text.trim();
+    if trimmed.to_lowercase() != "y" {
+        println!("[-] Caught non-affirmative. Quitting...");
+        std::process::exit(0);
+    }
+
+    // final safety check. is the user really sure they want to format everything???
+    println!("______________________________________________________________");
+    println!("WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING");
+    println!("______________________________________________________________");
+    println!("");
+    println!("YOU ARE ABOUT TO PERMANENTLY DELETE ALL INFORMATION FROM THIS DISK.");
+    println!("ARE YOU SURE YOU WISH TO CONTINUE? THERE IS NO GOING BACK AFTER THIS");
+    println!("y/N");
+
+    let mut input_text = String::new();
+    print!(" > ");
+    io::stdout().flush().unwrap();
+    io::stdin().read_line(&mut input_text).expect("failed to read from stdin");
+    
+    let trimmed = input_text.trim();
+    if trimmed.to_lowercase() != "y" {
+        println!("[-] Caught non-affirmative. Quitting...");
+        std::process::exit(0);
+    }
+
+    println!("______________________________________________________________");
+    println!("Securing formatting drive ({} passes of zeros)...", default_pass_num);
+    for _ in 0..default_pass_num {
+        zero_drive(drives_vec[umount_idx_vec[user_selection as usize-1]]);
+    }
+    
 }
