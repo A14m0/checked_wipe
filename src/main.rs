@@ -7,6 +7,7 @@ use std::{
     },
     
 };
+use chrono;
 use nix::unistd::Uid;
 #[macro_use] extern crate scan_fmt;
 
@@ -159,8 +160,10 @@ fn main() {
 
     println!("______________________________________________________________");
     println!("Securing formatting drive ({} passes of zeros). This will take a while...", DEFAULT_PASS_NUM);
+    println!("Started at {:?}", chrono::offset::Local::now());
     for i in 0..DEFAULT_PASS_NUM {
         println!("On pass #{}                                                       ", i+1);
+        std::io::stdout().flush().unwrap();
         match zero_drive(&drives_vec[umount_idx_vec[user_selection as usize-1]]){
             Ok(_) => (),
             Err(e) => println!("Zero drive issue hit: {}", e)
