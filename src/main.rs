@@ -170,8 +170,14 @@ fn zero_drive(disk: &DiskData) -> Result<(), String> {
 /// define functions for our structures
 impl PartitionData {
     fn new(part_line: String) -> Self {
+        let fmt: &str;
+        if part_line.contains("*") {
+            fmt = "{}\t*\t{}\t{}\t{}\t{}\t{}"
+        } else {
+            fmt = "{}\t{}\t{}\t{}\t{}\t{}";
+        }
         let (id, start, end, _sectors, size, fstype) = scan_fmt!(&part_line[..], 
-                                                        "{}\t{}\t{}\t{}\t{}\t{}", 
+                                                        fmt, 
                                                         String, u64, u64, u64, 
                                                         String, String).unwrap();
         
