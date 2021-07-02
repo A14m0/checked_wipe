@@ -166,5 +166,8 @@ fn main() {
             Err(e) => println!("Zero drive issue hit: {}", e)
         }
     }
+
+    println!("______________________________________________________________");
+    println!("[+] Wipe complete!");
     
 }
