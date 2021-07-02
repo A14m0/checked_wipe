@@ -12,7 +12,11 @@ use std::{
     },
     path::Path,
     fs::File,
-    fmt::Display
+    fmt::Display,
+    time::{
+        Duration, 
+        SystemTime
+    },
 };
 use nix::unistd::Uid;
 #[macro_use] extern crate scan_fmt;
@@ -153,7 +157,9 @@ fn print_top_levels(disk: &DiskData) -> Result<(), String>{
 fn zero_drive(disk: &DiskData) -> Result<(), String> {
     let mut drive_handle = std::fs::File::create(disk.path.clone()).expect("Failed to open disk for writing");
     let write_buf: [u8; 1024*1024] = [0;1024*1024];
-    for _idx in 0..disk.size as u64 {
+    let mut total_written = 0;
+    for idx in 0..disk.size as u64 {
+        let now = SystemTime::now();
         // for each gigabyte...
         for _idx2 in 0..1024{
             match drive_handle.write_all(&write_buf){
@@ -161,6 +167,21 @@ fn zero_drive(disk: &DiskData) -> Result<(), String> {
                 Err(e) => println!("[-] Hit write error: {}", e)
             };
         }
+        total_written += 1024*1024; // written 1 mb
+        let elapsed = match now.elapsed(){
+            Ok(a) => a,
+            Err(e) => {
+                println!("[-] Failed to time the write transactions: {}", e);
+                Duration::from_secs(0)
+            }
+        };
+        print!("                                                                \r");
+        io::stdout().flush().unwrap();
+        print!("Written {} GB, {:.2}% completed\t({} MB/s)\r", idx, (total_written*100) as f64/(disk.size*1024f64*1024f64), 1024*1000/elapsed.as_millis());
+        io::stdout().flush().unwrap();
+        // need to flush the file so we dont pretend we are writing 
+        // faster than we actually are
+        drive_handle.flush().unwrap(); 
     }
     
     Ok(())
@@ -289,6 +310,7 @@ fn main() {
     println!("\nAll Drives Currently Unmounted _______________________________");
     let mut umount_idx_vec: Vec<usize> = Vec::new();
     let mut ctr = 0;
+    let mut idx = 0;
     for drive in drives_vec.iter(){
         let mut is_drive_mounted: bool = false;
         for partition in drive.partitions.iter(){
@@ -299,10 +321,12 @@ fn main() {
 
         // if the drive is not mounted, print it and save the index
         if !is_drive_mounted {
-            println!("{}\t{}", ctr, drive);
-            umount_idx_vec.push(ctr);
+            println!("{}\t{}", ctr+1, drive);
+            umount_idx_vec.push(idx);
+
+            ctr += 1;
         }
-        ctr += 1;
+        idx += 1;
     }
 
     println!("______________________________________________________________");
@@ -385,8 +409,9 @@ fn main() {
     }
 
     println!("______________________________________________________________");
-    println!("Securing formatting drive ({} passes of zeros)...", DEFAULT_PASS_NUM);
-    for _ in 0..DEFAULT_PASS_NUM {
+    println!("Securing formatting drive ({} passes of zeros). This will take a while...", DEFAULT_PASS_NUM);
+    for i in 0..DEFAULT_PASS_NUM {
+        println!("On pass #{}", i+1);
         match zero_drive(&drives_vec[umount_idx_vec[user_selection as usize-1]]){
             Ok(_) => (),
             Err(e) => println!("Zero drive issue hit: {}", e)
