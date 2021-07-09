@@ -171,7 +171,7 @@ fn main() {
     }
 
     println!("{}", "______________________________________________________________".green());
-    println!("Securing formatting drive ({} passes of zeros). This will take a while...", DEFAULT_PASS_NUM);
+    println!("Securing formatting drive ({} passes of zeros). This will take a while...", loop_num);
     println!("Started at {:?}", chrono::offset::Local::now());
     for i in 0..loop_num {
         println!("On pass #{}                                                       ", i+1);
