@@ -47,7 +47,7 @@ pub fn zero_drive(disk: &DiskData) -> Result<(), String> {
     // initialize a progress bar
     let bar = ProgressBar::new(fsize as u64);
     bar.set_style(ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] {bar:40.green/red} {pos:>7}/{len:7} bytes")
+                .template("[{elapsed_precise}] [{bar:40.green/red}] {pos:>7}/{len:7} bytes")
                 .progress_chars("##-"));
     
     // loop until disk is fully written
@@ -81,9 +81,60 @@ pub fn zero_drive(disk: &DiskData) -> Result<(), String> {
     Ok(())
 }
 
+/// zeroes a disk from a given offset
+pub fn zero_check_from(disk: &DiskData, offset: usize) -> Result<(), String> {
+    // first get the file's size
+    let fsize = get_drive_size(disk.path.clone()); 
+    let write_loop_ctr = fsize / (1024*1024*1024);
+    let final_write = fsize % 1024;
+
+    // open the file and prep variables
+    let mut drive_handle = std::fs::File::create(disk.path.clone()).expect("Failed to open disk for writing");
+    // seek to the proper spot in the file
+    drive_handle.seek(std::io::SeekFrom::Start(offset as u64)).unwrap();
+    let write_buf: [u8; 1024*1024] = [0;1024*1024];
+    
+    // initialize a progress bar
+    let bar = ProgressBar::new(fsize as u64);
+    bar.set_style(ProgressStyle::default_bar()
+                .template("[{elapsed_precise}] [{bar:40.green/red}] {pos:>7}/{len:7} bytes")
+                .progress_chars("##-"));
+    
+    // loop until disk is fully written
+    for _ in offset..write_loop_ctr {
+        for _ in 0..1024 {
+            match drive_handle.write_all(&write_buf){
+                Ok(_) => (),
+                Err(e) => println!("[-] Hit write error: {}", e)
+            };
+            
+            // increment the progress bar
+            bar.inc(1024 * 1024);
+        }
+        
+        // need to flush the drive file so we dont pretend we 
+        // are writing faster than we actually are
+        drive_handle.flush().unwrap(); 
+    }
+
+    // write whatever last bytes need to be written
+    for _ in 0..final_write {
+        match drive_handle.write(&[0]) {
+            Ok(_) => (),
+            Err(e) => println!("[-] Hit write error: {}", e)
+        }
+        bar.inc(1);
+    }
+
+    bar.finish();
+    
+    Ok(())
+} 
+
+
 
 /// checks to see if a drive was really zeroed out
-pub fn assert_check(disk: &DiskData) -> Result<(), String> {
+pub fn assert_check(disk: &DiskData) -> Result<(), usize> {
     // first get the file's size
     let fsize = get_drive_size(disk.path.clone()); 
     let mut fs = std::fs::File::open(disk.path.clone()).unwrap();
@@ -93,16 +144,65 @@ pub fn assert_check(disk: &DiskData) -> Result<(), String> {
     // initialize a progress bar
     let bar = ProgressBar::new(fsize as u64);
     bar.set_style(ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] {bar:40.green/red} {pos:>7}/{len:7} bytes")
+                .template("[{elapsed_precise}] [{bar:40.cyan/yellow}] {pos:>7}/{len:7} bytes")
                 .progress_chars("##-"));
     
 
+    // assert that all read bytes should be zeros
     for _ in 0..(fsize/1024) {
         fs.read(&mut buff[..]).unwrap();
-        assert_eq!(checker, buff);
+        if checker != buff{
+            // check if its an EOF character thats throwing us off
+            if bar.length() == fsize as u64 {
+                bar.finish();
+                return Ok(());
+            }
+
+            let offset = bar.length() as usize;
+            bar.abandon();
+            println!("[-] Drive was not properly zeroed (non-zero found at offset {})", bar.length());
+            return Err(offset);
+        }
         bar.inc(1024);
     }   
     bar.finish();
     
+    Ok(())
+}
+
+/// checks if drive was zeroed from offset
+pub fn assert_check_from(disk: &DiskData, offset: usize) -> Result<(), String> {
+    // first get the file's size
+    let fsize = get_drive_size(disk.path.clone()); 
+    let mut fs = std::fs::File::open(disk.path.clone()).unwrap();
+    fs.seek(std::io::SeekFrom::Start(offset as u64)).unwrap();
+    let checker: [u8; 1024] = [0; 1024];
+    let mut buff: [u8; 1024] = [0; 1024];
+
+    // initialize a progress bar
+    let bar = ProgressBar::new(fsize as u64);
+    bar.set_style(ProgressStyle::default_bar()
+                .template("[{elapsed_precise}] [{bar:40.cyan/yellow}] {pos:>7}/{len:7} bytes")
+                .progress_chars("##-"));
+    
+
+    // assert that all read bytes should be zeros
+    for _ in offset..(fsize/1024) {
+        fs.read(&mut buff[..]).unwrap();
+        if checker != buff{
+            // check if its an EOF character thats throwing us off
+            if bar.length() == fsize as u64 {
+                bar.finish();
+                return Ok(());
+            }
+
+            bar.abandon();
+            println!("[-] Drive was not properly zeroed (non-zero found at offset {})", bar.length());
+            return Err("Zero assertion failed".to_string());
+        }
+        bar.inc(1024);
+    }   
+    bar.finish();
+
     Ok(())
 }

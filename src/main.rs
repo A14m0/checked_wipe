@@ -18,7 +18,9 @@ use definitions::{
     parse_partitions,
     print_top_levels,
     zero_drive,
-    assert_check
+    zero_check_from,
+    assert_check,
+    assert_check_from
 };
 
 
@@ -51,8 +53,8 @@ fn main() {
 					.help("The number of times to overwrite the disk (default is 5)"))
             .arg(Arg::with_name("checked")
                     .short("c")
-                    .long("checked")
-                    .help("Check to make sure the drive is really zeroed after the wipe"))
+                    .long("nocheck")
+                    .help("Do not check to make sure the drive is really zeroed after the wipe"))
 			.get_matches();
 
     let loop_num: usize;
@@ -65,9 +67,9 @@ fn main() {
     // see if we are gonna double-check our work
     let check: bool;
     if matches.is_present("checked") {
-        check = true;
-    } else {
         check = false;
+    } else {
+        check = true;
     }
 
     // get the partition/disk info we need
@@ -170,7 +172,7 @@ fn main() {
     println!("");
     println!("{}", "YOU ARE ABOUT TO PERMANENTLY DELETE ALL INFORMATION FROM THIS DISK.".red().bold());
     println!("{}", "ARE YOU SURE YOU WISH TO CONTINUE? THERE IS NO GOING BACK AFTER THIS".red().bold());
-    println!("{}", "y/N".yellow().clear());
+    println!("{}", "(y/N)".yellow());
 
     let mut input_text = String::new();
     print!(" > ");
@@ -185,7 +187,7 @@ fn main() {
 
     // do it
     println!("{}", "_______________________________________________________________".green());
-    println!("Securing formatting drive ({} pass(es) of zeros). This will take a while...", loop_num);
+    println!("Securely formatting drive ({} pass(es) of zeros). This will take a while...", loop_num);
     println!("Started at {:?}", chrono::offset::Local::now());
     let useridx = umount_idx_vec[user_selection as usize-1];
     for i in 0..loop_num {
@@ -201,8 +203,30 @@ fn main() {
     println!("{}", "[+] Wipe complete!".green());
     
     // see if we are gonna be doing our own checking
-    if check {
+    if !check {
         println!("{}", "[ ] Just double checking my work...".yellow());
-        assert_check(&drives_vec[useridx]).unwrap();
+        match assert_check(&drives_vec[useridx]){
+            Ok(_) => (),
+            Err(e) => {
+                println!("[ ] Attempting to zero non-zeroed data...");
+                for _ in 0..loop_num {
+                    match zero_check_from(&drives_vec[useridx], e) {
+                        Ok(_) => (),
+                        Err(e) => println!("{} {}", "[-] Failed secondary write:".red().bold(), e.red().bold())
+                    }
+                    println!("{}", "[+] Secondary write complete. Checking success now...".yellow())
+                }
+                    
+                match assert_check_from(&drives_vec[useridx], e) {
+                    Ok(_) => println!("{}", "[+] Successfully zeroed volume!".green()),
+                    Err(e) => println!("{} (offset {})", "[-] Failed secondary check. Aborting...".red().bold(), e)
+                }
+                
+            }
+        };
+    } else {
+        println!("[ ] Skipping success assertion check");
     }
+
+    println!("{}", "[+] All operations completed".green().bold());
 }
