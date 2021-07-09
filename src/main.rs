@@ -1,12 +1,11 @@
 #![feature(pattern)]
 use std::{
-    
     io::{
         self,
         prelude::*,
-    },
-    
+    }
 };
+use clap::{Arg, App};
 use chrono;
 use colored::Colorize;
 use nix::unistd::Uid;
@@ -24,13 +23,6 @@ use definitions::{
 
 
 
-
-
-/// define the default number of passes you want to go over the drive with
-static DEFAULT_PASS_NUM: u32 = 5;
-
-
-
 /// prints a welcome message to the user
 fn print_welcome(){
     println!("Welcome to Ch3cked W1pe");
@@ -38,7 +30,7 @@ fn print_welcome(){
 
 
 
-
+/// funny enough this is the main function
 fn main() {
     print_welcome();
     // check we are running as root
@@ -46,7 +38,26 @@ fn main() {
         panic!("[-] This program must be run as root");
     }
 
+    // fetch the CLI arguments
+    let matches = App::new("NetCDF Averager")
+			.version("0.2.0")
+			.author("Nick Ammann")
+			.about("Securely wipes a disk")
+			.arg(Arg::with_name("loops")
+					.short("n")
+					.long("number")
+					.takes_value(true)
+					.help("The number of times to overwrite the disk (default is 5)"))
+			.get_matches();
 
+    let loop_num: usize;
+    if matches.is_present("loops") {
+        loop_num = matches.value_of("loops").unwrap().to_string().parse::<usize>().unwrap();
+    } else {
+        loop_num = 5;
+    }
+
+    // get the partition/disk info we need
     let mut drives_vec: Vec<DiskData> = Vec::new();
     parse_partitions(&mut drives_vec).expect("Failed to read drives");
 
@@ -162,7 +173,7 @@ fn main() {
     println!("{}", "______________________________________________________________".green());
     println!("Securing formatting drive ({} passes of zeros). This will take a while...", DEFAULT_PASS_NUM);
     println!("Started at {:?}", chrono::offset::Local::now());
-    for i in 0..DEFAULT_PASS_NUM {
+    for i in 0..loop_num {
         println!("On pass #{}                                                       ", i+1);
         std::io::stdout().flush().unwrap();
         match zero_drive(&drives_vec[umount_idx_vec[user_selection as usize-1]]){
