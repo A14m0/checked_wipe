@@ -17,7 +17,8 @@ use definitions::{
     DiskData,
     parse_partitions,
     print_top_levels,
-    zero_drive
+    zero_drive,
+    assert_check
 };
 
 
@@ -48,6 +49,10 @@ fn main() {
 					.long("number")
 					.takes_value(true)
 					.help("The number of times to overwrite the disk (default is 5)"))
+            .arg(Arg::with_name("checked")
+                    .short("c")
+                    .long("checked")
+                    .help("Check to make sure the drive is really zeroed after the wipe"))
 			.get_matches();
 
     let loop_num: usize;
@@ -57,11 +62,19 @@ fn main() {
         loop_num = 5;
     }
 
+    // see if we are gonna double-check our work
+    let check: bool;
+    if matches.is_present("checked") {
+        check = true;
+    } else {
+        check = false;
+    }
+
     // get the partition/disk info we need
     let mut drives_vec: Vec<DiskData> = Vec::new();
     parse_partitions(&mut drives_vec).expect("Failed to read drives");
 
-    println!("{}", "All Drives ___________________________________________________".green());
+    println!("{}", "All Drives ____________________________________________________".green());
     for drive in drives_vec.iter(){
         println!("\t{}", drive.to_string().red());
         for partition in drive.partitions.iter(){
@@ -69,7 +82,7 @@ fn main() {
         }
     }
 
-    println!("\n{}", "All Drives Currently Unmounted _______________________________".green());
+    println!("\n{}", "All Drives Currently Unmounted ________________________________".green());
     let mut umount_idx_vec: Vec<usize> = Vec::new();
     let mut ctr = 0;
     let mut idx = 0;
@@ -91,7 +104,7 @@ fn main() {
         idx += 1;
     }
 
-    println!("{}", "______________________________________________________________".green());
+    println!("{}", "_______________________________________________________________".green());
     println!("{}", "Select the drive you would like to format (`q` to quit)".yellow().clear());
     let mut user_selection = -1;
     let mut is_done = false;
@@ -129,7 +142,7 @@ fn main() {
 
     
     // print drive partition information
-    println!("{}", "______________________________________________________________".green());
+    println!("{}", "_______________________________________________________________".green());
     println!("You have selected disk # {}", user_selection);
     println!("{}", drives_vec[umount_idx_vec[user_selection as usize-1]].to_string().red());
     match print_top_levels(&drives_vec[umount_idx_vec[user_selection as usize-1]]){
@@ -151,9 +164,9 @@ fn main() {
     }
 
     // final safety check. is the user really sure they want to format everything???
-    println!("{}", "______________________________________________________________".red().bold());
+    println!("{}", "_______________________________________________________________".red().bold());
     println!("{}", "WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING".red().bold());
-    println!("{}", "______________________________________________________________".red().bold());
+    println!("{}", "_______________________________________________________________".red().bold());
     println!("");
     println!("{}", "YOU ARE ABOUT TO PERMANENTLY DELETE ALL INFORMATION FROM THIS DISK.".red().bold());
     println!("{}", "ARE YOU SURE YOU WISH TO CONTINUE? THERE IS NO GOING BACK AFTER THIS".red().bold());
@@ -170,19 +183,26 @@ fn main() {
         std::process::exit(0);
     }
 
-    println!("{}", "______________________________________________________________".green());
-    println!("Securing formatting drive ({} passes of zeros). This will take a while...", loop_num);
+    // do it
+    println!("{}", "_______________________________________________________________".green());
+    println!("Securing formatting drive ({} pass(es) of zeros). This will take a while...", loop_num);
     println!("Started at {:?}", chrono::offset::Local::now());
+    let useridx = umount_idx_vec[user_selection as usize-1];
     for i in 0..loop_num {
-        println!("On pass #{}                                                       ", i+1);
+        println!("On pass #{}", i+1);
         std::io::stdout().flush().unwrap();
-        match zero_drive(&drives_vec[umount_idx_vec[user_selection as usize-1]]){
+        match zero_drive(&drives_vec[useridx]){
             Ok(_) => (),
             Err(e) => println!("Zero drive issue hit: {}", e)
         }
     }
 
-    println!("{}", "______________________________________________________________".green());
+    println!("{}", "_______________________________________________________________".green());
     println!("{}", "[+] Wipe complete!".green());
     
+    // see if we are gonna be doing our own checking
+    if check {
+        println!("{}", "[ ] Just double checking my work...".yellow());
+        assert_check(&drives_vec[useridx]).unwrap();
+    }
 }
