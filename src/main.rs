@@ -203,7 +203,7 @@ fn main() {
     println!("{}", "[+] Wipe complete!".green());
     
     // see if we are gonna be doing our own checking
-    if !check {
+    if check {
         println!("{}", "[ ] Just double checking my work...".yellow());
         match assert_check(&drives_vec[useridx]){
             Ok(_) => (),
